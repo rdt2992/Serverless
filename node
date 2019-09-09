@@ -1,0 +1,36 @@
+
+public class node {
+	private String func;
+	private node left = null;
+	private node right = null;
+	private node parent = null;
+	
+	public node(String func) {
+		this.setData(func);
+	}
+	public String getData() {
+		return func;
+	}
+	public void setData(String func) {
+		this.func = func;
+	}
+	public node getLeft() {
+		return left;
+	}
+	public node getRight() {
+		return right;
+	}
+	public node getParent() {
+		return parent;
+	}
+	public void setLeft(node left) {
+		this.left = left;
+	}
+	public void setRight(node right) {
+		this.right = right;
+	}
+	public void setParent(node parent) {
+		this.parent = parent;
+	}
+
+}
