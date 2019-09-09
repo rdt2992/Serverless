@@ -1,0 +1,802 @@
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Scanner;
+
+import org.json.simple.JSONObject;
+
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.LambdaExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
+import com.github.javaparser.utils.CodeGenerationUtils;
+import com.github.javaparser.utils.SourceRoot;
+
+
+public class main {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		String path;
+		//= "C:\Users\COMNET4\eclipse-workspace\\Blabla\\src\\main.java";
+		Scanner s = new Scanner(System.in);
+		System.out.println("path:");
+		path = s.nextLine();
+
+		SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(main.class).resolve(
+	        		"C:\\Users\\COMNET4\\eclipse-workspace\\Blabla\\src"));
+
+	        // Our sample is in the root of this directory, so no package name.
+	    CompilationUnit cu = sourceRoot.parse("", path);
+		cu.accept(new ModifierVisitor<Void>() {
+			String[] paras = new String[100];
+			String[] bodys = new String[100];
+			String[] pType = new String[100];
+			String[] importS = new String[100];
+			String composer;
+			String rType;
+			String lambda;
+			String fname;
+			int importcnt=0;
+			int paracnt=0;
+			int bodycnt=0;
+			int pTypecnt=0;
+			Statement body;
+        	public Visitable visit(LambdaExpr n, Void arg) {
+        		//System.out.println("n:"+"\n"+n); 
+        		body = n.getBody().clone();
+        		NodeList<Parameter> para = n.getParameters();
+        		paras[paracnt] = para.toString().substring(1, para.toString().length()-1);
+        		paracnt++;
+        		bodys[bodycnt] = body.toString();
+//        		System.out.println("para: "+para);
+//        		System.out.println("body: "+body);
+//        		System.out.println();
+        		return super.visit(n, arg);
+        	}
+        	public Node visit(ImportDeclaration n, Void arg) {
+        		importS[importcnt] = n.toString();
+        		importcnt++;
+        		return super.visit(n, arg);
+        	}
+        	public Visitable visit(MethodCallExpr n, Void arg) {
+        		//System.out.println("call:"+"\n"+n); 
+        		Process[] process = new Process[10];
+        		for(int i=0; i<10; i++) {
+        			process[i] = null;
+        		}
+        		if(n.toString().contains("apply")) {
+        			composer = n.toString();
+        			int i;
+            		for(i = composer.length()-1; i>0; i--) {
+            			if(composer.toCharArray()[i] == '.' && composer.toCharArray()[i+1]=='a'
+            					&& i+1<composer.length()-1) {
+            				composer = composer.substring(0, i);
+            				break;
+            			}
+            		}
+            		String comp;
+            		String compareS;
+            		char[][] tokens = new char[100][100];
+            		int token=0, tokenl=0;
+            		int count, fcnt=0;
+            		int j=0;
+            		boolean firstflag=true;
+            		boolean AorC = true;///////////////true is andThen, false is compose
+            		boolean notHaveParent = false;
+            		String stringA = ".andThen";
+            		String stringC = ".compose";
+            		node now = null;
+            		node andThen = null;
+            		node next = null;
+            		node root = null;
+            		String[] functions = new String[100];
+            		            		
+            		comp = composer;
+            		count = comp.length();////////////////////get input
+            		char[] comp2 = comp.toCharArray();/////////////input to char array
+            		
+            		if(!comp.contains(stringA) && !comp.contains(stringC)) {
+            			
+            			functions[fcnt] = comp;
+
+            			fcnt++;
+            		}
+            		else {
+            		for(i = 0; i<count; i++) {
+               			if(comp2[i] != '(' && comp2[i] != ')') {
+            				if(comp2[i] == '.') {//////////////////////if there is '.'
+            					compareS = comp.substring(i, i+8);
+            					if(compareS.equals(stringA)) {	//if condition is andThen
+            						if(firstflag) {			///////////check first
+            							root = new node(String.valueOf(tokens[token]));
+            							firstflag=false;
+            							now = root;
+            							andThen = root;
+            						}else {					//if not first
+            							if(AorC) {			//if before condition is andThen
+            								if(now == andThen) {
+            									next = new node(String.valueOf(tokens[token]));
+            									now.setRight(next);
+            									next.setParent(now);
+            									andThen = next;
+            									now = next;						
+            								}else {
+            									next = new node(String.valueOf(tokens[token]));
+            									andThen.setRight(next);
+            									now = next;
+            									next.setParent(andThen);
+            									andThen = now;
+            								}
+            							}else {			//before is compose
+            								next = new node(String.valueOf(tokens[token]));
+            								now.setLeft(next);
+            								next.setParent(now);
+            								now = next;
+            							}
+            						}
+            						i += 7;
+            						token++;
+            						tokenl=0;
+            						AorC = true;
+            					}else if(compareS.equals(stringC)) {	//if condition is compose	
+            						if(firstflag) {
+            							root = new node(String.valueOf(tokens[token]));
+            							firstflag=false;
+            							now = root;
+            							andThen = root;
+            						}else {
+            							if(AorC) {
+            								if(now == andThen) {
+            									next = new node(String.valueOf(tokens[token]));
+            									now.setRight(next);
+            									next.setParent(now);
+            									andThen = next;
+            									now = next;						
+            								}else {
+            									next = new node(String.valueOf(tokens[token]));
+            									andThen.setRight(next);
+            									now = next;
+            									next.setParent(andThen);
+            									andThen = now;
+            								}
+            							}else {
+            								next = new node(String.valueOf(tokens[token]));
+            								now.setLeft(next);
+            								next.setParent(now);
+            								now = next;
+            							}
+            						}
+            						i+=7;
+            						token++;
+            						tokenl=0;
+            						AorC = false;
+            					}else {
+            						tokens[token][tokenl] = comp2[i];
+
+            					}
+            				}else {
+            					tokens[token][tokenl] = comp2[i];
+            					tokenl++;
+            				}
+            			}
+            		}
+            		
+            		if(AorC) {
+            			if(now == andThen) {
+            				next = new node(String.valueOf(tokens[token]));
+            				now.setRight(next);
+            				next.setParent(now);
+            				andThen = next;
+            				now = next;						
+            			}else {
+            				next = new node(String.valueOf(tokens[token]));
+            				andThen.setRight(next);
+            				now = next;
+            				next.setParent(andThen);
+            				andThen = now;
+            			}
+            		}else {
+            			next = new node(String.valueOf(tokens[token]));
+            			now.setLeft(next);
+            			next.setParent(now);
+            			now = next;
+            		}
+            		///////////////////////////////////////////////preorder
+
+            		now = root;
+            		while(true) {
+            			if(now.getLeft() != null) {
+            				now = now.getLeft();
+            				continue;
+            			}
+            			if(fcnt<100) {
+            				functions[fcnt] = now.getData();
+            				fcnt++;
+            			}
+
+            			if(now.getRight() != null) {
+            				now = now.getRight();
+            				continue;
+            			}
+            			
+            			if(now.getLeft() == null && now.getRight() == null) {
+            				if(now == now.getParent().getRight()){ 
+            					if(now.getParent().getParent() != null) {
+            						if(now.getParent() == now.getParent().getParent().getLeft()) {
+            							now = now.getParent().getParent();
+            							now.setLeft(null);
+            							continue;
+            						}else {
+            							now.getParent().setParent(null);
+            							now.setParent(null);
+            						}
+            					}else {
+            						while(now != now.getParent().getLeft() && now.getParent() != null) {
+            							now = now.getParent();
+            							now.setRight(null);
+            							if(now.getParent() == null) {
+            								notHaveParent = true;
+            								break;
+            							}
+            						}
+            						if(notHaveParent) break;
+            						now = now.getParent();
+            						continue;
+            					}
+
+            				}else if(now == now.getParent().getLeft()) {
+            					now = now.getParent();
+            					now.setLeft(null);
+            					continue;
+            				}else {
+            					while(now != now.getParent().getLeft() && now.getParent() != null) {
+            						now = now.getParent();
+            						now.setRight(null);
+            						if(now.getParent() == null) {
+            							notHaveParent = true;
+            							break;
+            						}
+            					}
+            					if(notHaveParent) break;
+            					now = now.getParent();
+            					continue;
+            				}
+            			}
+            			if(now.getParent() == null && now.getLeft() == null && now.getRight() == null) break;
+            		}
+            		System.out.println(fcnt);
+            		}
+            ///////////////////////////////////////////////////////////////////////////////////////tree
+            		int index=0;
+            		if(fcnt>1) {
+            		for(i = 0; i<fcnt; i++) {
+            			comp2 = functions[i].toCharArray();
+            			for(j = 0; j<100; j++) {
+            				if(comp2[j] == '\u0000') {
+            					index = j;
+            					break;
+            				}
+            			}
+            			functions[i] = functions[i].substring(0,index);
+            		}
+            		}
+            		///////////////////////////////////////////////////////////make function array
+            /////////////////////////////////////////////////////////////////////////////////////////JSON
+
+            		Map jsonobject = new LinkedHashMap();
+            		Map functionarray = new LinkedHashMap();
+            		Map functioninfo = new LinkedHashMap();
+            		Map jsonobject2 = new LinkedHashMap();
+            		
+            		for(i = 0; i<fcnt-1; i++) {
+            			String resource = "arn:aws:lambda:ap-northeast-2:135601515894:function:"+functions[i];
+            			functioninfo.put("Type", "Task");
+            			functioninfo.put("Resource", resource);
+            			functioninfo.put("Next", functions[i+1]);
+            			functionarray.put(functions[i], functioninfo);
+            			functioninfo = new LinkedHashMap();
+            		}
+            		String resource = "arn:aws:lambda:ap-northeast-2:135601515894:function:"+functions[fcnt-1];
+            		functioninfo.put("Type", "Task");
+            		functioninfo.put("Resource", resource);
+            		functioninfo.put("End", true);
+            		functionarray.put(functions[fcnt-1], functioninfo);
+            		
+            		jsonobject.put("StartAt", functions[0]);
+            		jsonobject.put("States", functionarray);
+            		
+            		jsonobject2.put("StateMachine", jsonobject);
+            		
+
+            		JSONObject json = new JSONObject(jsonobject2);
+            		//System.out.println(json.toJSONString());
+            		
+            		String fileName = "C:\\Users\\COMNET4\\Desktop\\stepFunction.json";
+            		String sf = json.toString();
+            		sf = sf.substring(16, sf.length()-1);
+        			File file  = new File(fileName);
+        			FileWriter fw;
+					try {
+						fw = new FileWriter(file, true);
+	        			fw.write(sf);
+	        			fw.flush();
+	        			fw.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+            /////////////////////////////////////////////////////////////////////////////////////////////////////
+					System.out.println("choice    1. Step function        2.Sequence");
+					Scanner s = new Scanner(System.in);
+					String choice = s.nextLine();
+					if(choice.equals("1")) {
+						System.out.println("Write state machine name");
+						String sName = s.nextLine();
+//						System.out.println("Write .json file Path");
+//						String jsonP = s.nextLine();
+						String jsonP = "c:\\Users\\COMNET4\\Desktop\\stepFunction.json";
+						System.out.println("Write role ARN");
+						String arnR = s.nextLine();
+//						System.out.println("Make Statemachine CLI: aws stepfunctions create-state-machine --name "+sName+" --definition fileb://"+jsonP+
+//								" --role-arn \""+arnR+"\"");
+//						System.out.println("Write your State machine arn");
+//						String arnS = s.nextLine();
+//						System.out.println("Execute Stepfunction CLI : aws stepfunctions start-execution --state-machine-arn "+ arnS+
+//								" --name '"+sName+"' --input ");
+//						System.out.println("Write your execute ARN");
+//						String arnE = s.nextLine();
+//						System.out.println("Result CLI : aws stepfunctions describe-execution --execution-arn \""+arnE+"\"");
+						try {
+							process[0] = Runtime.getRuntime().exec("cmd /C aws stepfunctions create-state-machine --name \""+sName+"\" --definition fileb://"
+									+jsonP+" --role-arn \""+arnR+"\"");
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}else {
+						System.out.println("Write your sequence name");
+						String sName = s.nextLine();
+						//System.out.print("Make Sequence CLI : ibmcloud wsk action create "+sName+" --sequence ");
+						String series = null;
+						series = "cmd /C ibmcloud wsk action create \""+sName+"\" --sequence ";
+						for(i=0; i<fcnt; i++) {
+							series = series + functions[i];
+							//System.out.print(functions[i]);
+							if(i != fcnt-1) series = series + ","; 
+								//System.out.print(",");
+						}
+						try {
+							process[0] = Runtime.getRuntime().exec(series);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+//						System.out.println();
+//						System.out.println("Invoke Sequence CLI : ibmcloud wsk action invoke --result "+sName+" --param num ");
+					}
+            		
+        		}
+
+        		return super.visit(n, arg);
+        	}
+        	public Visitable visit(Name n, NameExpr m, Void arg) {
+        		//System.out.println("name: "+"\n"+n);
+        		//System.out.println("````````````````````````\n"+n+"\n"+m);
+        		return super.visit(n, arg);
+        	}
+        	public Visitable visit(ExpressionStmt n, Void arg) {
+        		//System.out.println("stmt: "+"\n"+n);
+        		paracnt=0;
+        		pTypecnt=0;
+        		bodycnt=0;
+        		Process process = null;
+        		int rightcnt=0;
+        		char[] lambdac = new char[10000];
+        		if(n.toString().contains("->")) {
+        			lambdac = n.toString().toCharArray();
+        			for(int i=0; i<n.toString().length(); i++) {
+        				if(lambdac[i] == '>') {
+        					rightcnt++;
+        					if(rightcnt==2) {
+        						lambda = n.toString().substring(i, n.toString().length()-1);
+        						break;
+        					}
+        				}
+        			}
+        			lambdac = lambda.toCharArray();
+        			int rflag=0;
+        			int ridx=0;
+        			int colIdx=0;
+        			int deleteflag=0;
+        			String delete=null;
+        			for(int i=0; i<lambda.length(); i++) {
+        				if(lambdac[i]=='{' && colIdx==0) {
+        					deleteflag=1;
+        					break;
+        				}
+        				if(lambdac[i]==';') colIdx = i;
+        			}
+
+
+        			for(int i = 0; i<lambda.length(); i++) {
+        				if(lambdac[i]=='r') {
+        					if(lambda.substring(i, i+6).equals("return")) {
+        						rflag=1;
+        						ridx=i;
+        					}
+        				}
+        				if(rflag==1 && lambdac[i]==';') {
+        					delete = lambda.substring(ridx, i+1);
+        				}
+        			}
+        			lambda = lambda.replace(delete, "");
+        			if(deleteflag==1) {
+        				for(int i=0; i<lambda.length(); i++) {
+        					if(lambdac[i]=='{') {
+        						lambda = lambda.substring(i+1, lambda.length()-4);
+        						break;
+        					} 
+        				}
+        			}
+        			fname = n.toString().split("=")[0].split(">")[1];
+        			fname = fname.replaceAll(" ", "");
+        			//System.out.println(lambda);
+        			String sub = n.toString().split("=")[0];
+        			for(int i=0; i<sub.split(",").length; i++) {
+        				pType[i] = sub.split(",")[i];
+        				pTypecnt++;
+        			}
+        			pType[0] = pType[0].split("<")[1];
+        			pType[pTypecnt-1] = pType[pTypecnt-1].split(">")[0];
+        			rType = pType[pTypecnt-1];
+        			pTypecnt--;
+        			String bodyA=null;
+        			sub = n.toString().split("=")[1];
+        			sub = sub.split("-")[0];
+        			for(int i=0; i<sub.split(",").length; i++) {
+        				paras[paracnt] = sub.split(",")[i];
+        				paras[paracnt]=paras[paracnt].replaceAll("=", "");
+        				paracnt++;
+        			}
+        			sub = lambda;
+        			for(int i=0; i<sub.split(";").length; i++) {
+        				bodys[bodycnt] = sub.split(";")[i];
+        				bodycnt++;
+        			}
+        			bodyA = sub;
+		
+        			paras[0] = paras[0].replaceAll(" ", "");
+        			pTypecnt=0;
+        			String bodyAWS = bodyA;
+        			if(bodycnt==1) {
+        				bodyAWS = bodyAWS+";";
+        			}
+        			String importB = null;
+        			for(int i=0; i<importcnt; i++) {
+        				importB += importS[i];
+        			}
+        			importB = importB.replaceAll("null", "");
+        			////////////////////////////////////////////////////////////////////////////////////
+        			String Package = "package com.amazonaws.lambda.demo;";
+        			String importC = "import com.amazonaws.services.lambda.runtime.Context;";
+        			String importH = "import com.amazonaws.services.lambda.runtime.RequestHandler;";
+        			String classhandler = "public class LambdaFunctionHandler implements RequestHandler<"
+        					+ pType[0]+", "+rType+"> {";
+        			String handler = "    public "+ rType+" handleRequest("+pType[0]+" "+paras[0]+", Context context) {";
+        			String context = "        context.getLogger().log(\""+paras[0]+": \" + "+paras[0]+");";
+        			String rtrn = "        return "+paras[0]+";";
+        			if(delete !=null) {
+        				rtrn = "        "+delete;
+        			}
+        			String bracket1 = "    }";
+        			String bracket2 = "}";
+        			//////////////////////////////////////////////////////////////////////////////////////
+        			String typeOW = ".getAsInt();";
+        			String varType = "int";
+        			if(pType[0].contains("String")) {
+        				typeOW = ".getAsString();";
+        				varType = "String";
+        			}
+        			String OWbody = bodys[0].replaceAll(paras[0], "num");
+        			String importOW = "import com.google.gson.JsonObject;";
+        			String classOW = "public class main {";
+        			String mainOW = "    public static JsonObject main(JsonObject args) {";
+        			varType = "        "+varType+" "+"num"+"=0;";
+        			String ifOW = "        if (args.has(\""+"num"+"\"))";
+        			String ifbody = "            "+"num"+" = args.getAsJsonPrimitive(\""+"num"+"\")"+typeOW;
+        			String jsonOb = "        JsonObject response = new JsonObject();";
+        			String jsonadd = "        response.addProperty(\""+"num"+"\", "+OWbody+");";
+        			String rtrnOW = "        return response;";
+        			String OW = importOW+"\r\n"+importB+"\r\n"+classOW+"\r\n"+mainOW+"\r\n"+varType+"\r\n"+ifOW+"\r\n"+
+    	        			ifbody+"\r\n"+jsonOb+"\r\n"+jsonadd+"\r\n"+rtrnOW+"\r\n"+bracket1+"\r\n"+bracket2;
+        			//if(pType[0].contains("[]")) {
+        			/////////////////////////////////////////////////////////////////////////////////
+        			
+        			String returns = delete.split(" ")[1].split(";")[0];
+        			String output = null;
+        			String input1="import com.google.gson.JsonObject;\r\n" + 
+    						"public class main {\r\n" + 
+    						"    public static JsonObject main(JsonObject args) {\r\n" + 
+    						"    	String input = \"fail\";\r\n" + 
+    						"    	String output=null;\r\n" + 
+    						"    	if(args.has(\"num\"))\r\n" + 
+    						"    		input = args.getAsJsonPrimitive(\"num\").getAsString();\r\n" + 
+    						"    	String[] parse = new String[100];\r\n"+
+    						"    	input = input.replaceAll(\"\\\"\", \"\");\r\n";
+        			String input2 = null;
+        			returns = returns.replaceAll(" ", "");
+        			String type = null;
+        			String type2 = null;
+        			if(pType[0].contains("Double")) {
+        				type = "double";
+        				type2 = "Double";
+        			}else if(pType[0].contains("Int")){
+        				type = "int";
+        				type2 = "Int";
+        			}else {
+        				type = "String";
+        			}
+
+        			if(type.contains("null")) {
+        				type = type.replaceAll("null", "");
+        			}
+        			if(pType[0].contains("[]")) {  
+        				//input2 ="    	"+pType[0]+" "+ paras[0] +"= new "+pType[0].substring(0, pType[0].length()-1)+"100];  	\r\n" + 
+        				input2 ="    	"+type+"[] "+ paras[0] +"= new "+type+"[100];  	\r\n" +
+        						"    	for(int i=0; i<input.split(\",\").length; i++) {\r\n" + 
+        						"    		parse[i] = input.split(\",\")[i];\r\n" + 
+        						"    		"+paras[0]+"[i] = "+pType[0].substring(0, pType[0].length()-2)+
+        						//".parse"+pType[0].substring(0, pType[0].length()-2)+"(parse[i]);\r\n" +
+        						".parse"+type2+"(parse[i]);\r\n" +
+        						"    	}";
+        			}else if(pType[0].contains("String")){
+        				input2 = "    	"+type+" "+ paras[0] +"= null;  	\r\n" + 
+
+        						"      "+paras[0]+" = input;\r\n" ;
+        			}else {
+        				input2 = "    	"+type+" "+ paras[0] +"= 0;  	\r\n" + 
+
+        						"    		"+paras[0]+" = "+pType[0]+".parse"+type2+"(input);\r\n" ;
+        			}
+        				
+        				OWbody = bodyA;
+        				if(rType.contains("[]")) {
+        					output = "    	for(int i=0; i<"+ returns +".length; i++) {\r\n" + 
+            						"    		output+=String.valueOf("+returns+"[i]);\r\n" + 
+        							"    		if(i < "+returns+".length-1){\r\n" +
+            						"                output = output+\",\";\r\n"+
+        							"            }\r\n" +
+            						"    	}\r\n" + 
+            						"    	output = output.replaceAll(\"null\", \"\");\r\n" +
+            						"       output = \"\"+output+\"\";\r\n"+
+            						"    	JsonObject res = new JsonObject();\r\n" + 
+            						"    	res.addProperty(\"num\", output);\r\n" + 
+            						"        return res;\r\n"
+            						+ "    }\r\n" + 
+            						"}\r\n";
+        				}else {
+        					if(rType.contains("String")) {
+        						output =  "    	output = "+returns+";\r\n" + 
+            							"    	output = output.replaceAll(\"null\", \"\");\r\n" + 
+            							//"       output = \"\"+output+\"\";\r\n"+
+            							"    	JsonObject res = new JsonObject();\r\n" + 
+            							"    	res.addProperty(\"num\", output);\r\n" + 
+            							"        return res;\r\n"
+            							+ "    }\r\n" + 
+            							"}\r\n";
+        						
+        					}else {
+        						output = "    	output = String.valueOf("+ returns +");\r\n" + 
+            							"    	output = output.replaceAll(\"null\", \"\");\r\n" + 
+            							"    	JsonObject res = new JsonObject();\r\n" + 
+            							"    	res.addProperty(\"num\", output);\r\n" + 
+            							"        return res;\r\n"
+            							+ "    }\r\n" + 
+            							"}\r\n";
+        					}
+        				}
+        				
+        				OW = importB+"\r\n"+input1+input2+"\r\n"+OWbody+"\r\n"+output;
+        			//}
+        			
+        			
+        			
+        			System.out.println("Write your PC name");
+        			Scanner s2 = new Scanner(System.in);
+        			String PC = s2.nextLine();
+        			
+        			
+
+        			String AWS = Package+"\r\n"+importC+"\r\n"+importH+"\r\n"+importB+"\r\n"+classhandler+"\r\n"+
+        			handler+"\r\n"+context+"\r\n"+bodyAWS+"\r\n"+rtrn+"\r\n"+
+        					bracket1+"\r\n"+bracket2;
+        			/////////////////////////////////////////////////////////////////////////////////////
+
+        			 
+        			//////////////////////////////////////////////////////////////////////////////////
+
+        			String fileName = "C:\\Users\\"+PC+"\\Desktop\\"+fname+"\\"
+        					+ "src\\main\\java\\com.amazonaws.lambda.demo\\";
+
+        			String filePath = "LambdaFunctionHandler.java";
+        			File file  = new File(fileName);
+        			File fileOw = new File("C:\\Users\\"+PC+"\\Desktop\\"+fname+"\\src\\main\\java");
+
+        			
+        			
+        			FileWriter fw;
+        			
+        			
+        			System.out.println(fname+" 1 : AWS    2 : OpenWhisk");
+        			Scanner s = new Scanner(System.in);
+        			int choice = s.nextInt();
+					try {
+						
+						if(choice == 1) {
+							if(!file.exists()) {
+		        				file.mkdirs();
+		        			}
+							File file2 = new File(fileName+filePath);
+							fw = new FileWriter(file2, true);
+							fw.write(AWS);
+							fw.flush();
+							String pom = "<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n" + 
+									"	xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd\">\r\n" + 
+									"  <modelVersion>4.0.0</modelVersion>\r\n" + 
+									"\r\n" + 
+									"  <groupId>doc-examples</groupId>\r\n" + 
+									"  <artifactId>lambda-java-example</artifactId>\r\n" + 
+									"  <packaging>jar</packaging>\r\n" + 
+									"  <version>1.0-SNAPSHOT</version>\r\n" + 
+									"  <name>"+fname+"</name>\r\n" + 
+									"\r\n" + 
+									"  <dependencies>\r\n" + 
+									"    <dependency>\r\n" + 
+									"      <groupId>com.amazonaws</groupId>\r\n" + 
+									"      <artifactId>aws-lambda-java-core</artifactId>\r\n" + 
+									"      <version>1.1.0</version>\r\n" + 
+									"    </dependency>\r\n" + 
+									"  </dependencies>\r\n" + 
+									"\r\n" + 
+									"  <build>\r\n" + 
+									"    <plugins>\r\n" + 
+									"      <plugin>\r\n" + 
+									"        <groupId>org.apache.maven.plugins</groupId>\r\n" + 
+									"        <artifactId>maven-shade-plugin</artifactId>\r\n" + 
+									"        <version>2.3</version>\r\n" + 
+									"        <configuration>\r\n" + 
+									"          <createDependencyReducedPom>false</createDependencyReducedPom>\r\n" + 
+									"        </configuration>\r\n" + 
+									"        <executions>\r\n" + 
+									"          <execution>\r\n" + 
+									"            <phase>package</phase>\r\n" + 
+									"            <goals>\r\n" + 
+									"              <goal>shade</goal>\r\n" + 
+									"            </goals>\r\n" + 
+									"          </execution>\r\n" + 
+									"        </executions>\r\n" + 
+									"      </plugin>\r\n" + 
+									"    </plugins>\r\n" + 
+									"  </build>\r\n" + 
+									"</project>";
+							String pomPath = "C:\\Users\\COMNET4\\Desktop\\"+ fname +"\\pom.xml";
+							File file3 = new File(pomPath);
+							try {
+								fw = new FileWriter(file3, true);
+								if(choice == 1 && file3.length()==0) {
+									fw.write(pom);
+								}	        			
+
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+							System.out.println("Write your Role arn");
+							Scanner s3 = new Scanner(System.in);
+							String arnR = s3.nextLine();
+//							System.out.println("Write your .jar path");
+//							String jarP = s3.nextLine();
+//							System.out.println("function CLI : aws lambda create-function --function-name \""+fname+"\" --runtime \"java8\" --role \""+arnR+
+//									"\" --handler  \"com.amazonaws.lambda.demo.LambdaFunctionHandler\" --region ap-northeast-2 --zip-file \"file://"+
+//									jarP+"\"");
+							String jarP = "C:\\Users\\COMNET4\\Desktop\\"+fname+"\\target\\lambda-java-example-1.0-SNAPSHOT.jar";
+							String strp1 = "cmd /C cd C:\\Users\\COMNET4\\Desktop";
+							String strp2 = "cd "+fname;
+							String strp3 = "mvn package";
+							String strp4 = "aws lambda create-function --function-name \""+fname+"\" --runtime \"java8\" "
+									+ "--role \""+arnR+
+									"\" --handler  \"com.amazonaws.lambda.demo.LambdaFunctionHandler\" --region ap-northeast-2 --zip-file \"fileb://"+
+									jarP+"\"";
+							process = Runtime.getRuntime().exec(strp1+" && "+strp2+" && "+strp3+" && "+strp4);
+							
+						}else {
+							if(!fileOw.exists()) {
+		        				fileOw.mkdirs();
+		        			}
+							File fileOw2 = new File("C:\\Users\\COMNET4\\Desktop\\"+fname+"\\"+
+				        			"src\\main\\java\\main.java");
+							fw = new FileWriter(fileOw2, true);
+							fw.write(OW);
+							fw.flush();
+							String pom = "apply plugin: 'java'\r\n" + 
+									" \r\n" + 
+									"version = '1.0'\r\n" + 
+									" \r\n" + 
+									"sourceCompatibility  =  1.8\r\n" + 
+									" \r\n" +
+									"repositories {\r\n" + 
+									" \r\n" + 
+									"mavenCentral()\r\n" + 
+									" \r\n" + 
+									"}\r\n" + 
+									" \r\n" + 
+									"dependencies {\r\n" + 
+									" \r\n" + 
+									"compile 'com.google.code.gson:gson:2.6.2'\r\n" + 
+									" \r\n" + 
+									"}\r\n";
+							String pomPath = "C:\\Users\\COMNET4\\Desktop\\"+ fname +"\\build.gradle";
+							File file3 = new File(pomPath);
+							try {
+								fw = new FileWriter(file3, true);
+								if(file3.length()==0) {
+									fw.write(pom);
+								}	        			
+
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+//							System.out.println("Write your .jar Path");
+							Scanner s3 = new Scanner(System.in);
+//							String jarP = s3.nextLine();
+							String jarP  = "build/libs/"+fname+"-1.0.jar";
+							//System.out.println("action CLI : ibmcloud wsk action create "+fname+" "+jarP+" --main main\r\n");
+							String strp1 = "cmd /C cd C:\\Users\\COMNET4\\Desktop";
+							String strp2 = "cd "+fname;
+							String strp3 = "gradle jar";
+							String strp4 = "ibmcloud wsk action create "+fname+" "+jarP+" --main main\r\n";
+							process = Runtime.getRuntime().exec(strp1 + " && " + strp2 + " && " + strp3 + " && "+ strp4);
+
+						}
+						fw.flush();
+						fw.close();
+
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+        		}
+        		return super.visit(n, arg);
+        		
+        	}
+        	public Visitable visit(ClassOrInterfaceType n, Void arg) {
+        		//System.out.println("Type: "+ n);
+        		return super.visit(n, arg);
+        	}
+        	
+        	public Visitable visit(Name n, Void arg) {
+        		//System.out.println("ID: "+ n);
+
+        		return super.visit(n, arg);
+        	}
+        }, null);
+        //System.out.println(cu);
+        
+	}
+
+}
