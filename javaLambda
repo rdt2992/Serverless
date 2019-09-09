@@ -1,0 +1,20 @@
+import java.util.function.Function;
+
+public class main{
+	public static void main(String[] args) {
+		Double[] arr = {1.7, 60.0};
+		Function<Double[], Double[]> fSquare = info ->{
+			info[0] = info[0]*info[0];
+			return info;
+		};
+		Function<Double[], Double> fDevide = info -> {
+			Double bmi = info[1]/info[0];
+		    return bmi;
+		};
+		Function<Double, Double> fPrint = bmi -> {
+			System.out.println(bmi);
+			return bmi;
+		};
+		fSquare.andThen(fDevide).andThen(fPrint).apply(arr);
+	}
+}
